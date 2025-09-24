@@ -25,7 +25,7 @@ export default function StudentPage() {
             // Create a query filtered by the logged-in student's course
             const q = query(
                 collection(db, "PastQuestions"),
-                where("course", "==", studentData.course)
+                // where("course", "==", studentData.course)
             );
 
             // Set up a real-time listener for the past questions
