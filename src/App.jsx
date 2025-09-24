@@ -25,18 +25,10 @@ export default function App() {
     <Router>
       <Routes>
         <Route path="/" element={<AuthForm setUser={setUser} />} />
-        
+        <Route path="/register" element={<Registration />} />
         
         {/* Protected Routes with specific allowed roles */}
 
-         <Route
-          path="/register"
-          element={
-            <ProtectedRoute user={user} allowedRoles={['Student','CEO']} handleLogout={handleLogout}>
-              <Registration />
-            </ProtectedRoute>
-          }
-        />
         <Route
           path="/admin"
           element={
