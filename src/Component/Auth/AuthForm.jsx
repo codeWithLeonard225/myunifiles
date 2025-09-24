@@ -68,7 +68,7 @@ const Login = ({ setUser }) => {
                 setUser(userWithRole);
                 localStorage.setItem("user", JSON.stringify(userWithRole));
                 
-                navigate('/student-page');
+                navigate('/student-page', { state: { user: userWithRole } });
                 return;
             }
 
@@ -89,7 +89,7 @@ const Login = ({ setUser }) => {
                 setUser(userWithRole);
                 localStorage.setItem("user", JSON.stringify(userWithRole));
                 
-                navigate('/admin');
+                navigate('/admin', { state: { user: userWithRole } });
                 return;
             }
 
