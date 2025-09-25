@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
 import { db } from "../../../firebase";
@@ -102,7 +102,10 @@ const IDCardPreview = ({ data, onClose }) => {
                     </div>
 
                     <p className="text-lg font-bold text-gray-800 break-words">{data.studentName}</p>
-                    <p className="text-sm text-gray-500">ID: <span className="font-mono text-indigo-700">{data.studentID}</span></p>
+                    <p className="text-lg text-gray-500">
+                        ID: <span className="font-mono text-indigo-700 text-xl">{data.studentID}</span>
+                    </p>
+
                     <div className="text-left w-full mt-3 text-sm space-y-1">
                         <p>📞 Tel: {data.tele}</p>
                         <p>🎓 Course: {data.course} ({data.academicYear})</p>
@@ -177,7 +180,7 @@ const Registration = () => {
     // Handle input changes
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        
+
         const newData = { ...formData, [name]: value };
         if (name === "dob") newData.age = calculateAge(value);
         setFormData(newData);
@@ -244,7 +247,7 @@ const Registration = () => {
         try {
             const dataToSave = {
                 ...formData,
-                 studentName: formData.studentName.toLowerCase(), // <-- lowercase here
+                studentName: formData.studentName.toLowerCase(), // <-- lowercase here
                 userPhotoUrl: formData.userPhoto,
             };
 

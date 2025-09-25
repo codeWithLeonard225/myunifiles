@@ -64,7 +64,7 @@ const AdminPage = () => {
         // 🔑 MODIFIED: Initialize with logged-in admin user data
         studentID: adminUser.studentID || "",
         studentName: adminUser.studentName || "",
-        course: "",
+        Courses: [],
         Level: "",
         Semester: "",
         Module: "",
@@ -159,26 +159,29 @@ const AdminPage = () => {
     };
 
     const validateForm = () => {
-        const fields = [
-            "studentName",
-            "course",
-            "Level",
-            "Semester",
-            "Module",
-            "academicYear",
-        ];
         const errors = {};
         let valid = true;
 
-        fields.forEach((field) => {
-            const value = formData[field];
-            const error = validateField(field, value);
-            if (error) {
-                errors[field] = error;
-                valid = false;
-            }
-        });
-
+        if (!formData.Module) {
+            errors.Module = "Module selection is required.";
+            valid = false;
+        }
+        if (!formData.Level) {
+            errors.Level = "Level selection is required.";
+            valid = false;
+        }
+        if (!formData.Semester) {
+            errors.Semester = "Semester selection is required.";
+            valid = false;
+        }
+        if (!formData.Courses || formData.Courses.length === 0) {
+            errors.Courses = "At least one Dept is required.";
+            valid = false;
+        }
+        if (!formData.academicYear) {
+            errors.academicYear = "Academic Year selection is required.";
+            valid = false;
+        }
         if (!formData.userPhoto) {
             toast.error("Photo is required!");
             valid = false;
@@ -209,6 +212,7 @@ const AdminPage = () => {
                 // Add new 
                 await addDoc(collection(db, COLLECTION_NAME), {
                     ...dataToSave,
+                    Courses: formData.Courses, // 👈 saves as array
                     timestamp: new Date(),
                 });
                 toast.success("Student registered successfully! 🎉");
@@ -218,7 +222,7 @@ const AdminPage = () => {
                 // 🔑 MODIFIED: Preserve admin's ID and Name after submission
                 studentID: adminUser.studentID || "",
                 studentName: adminUser.studentName || "",
-                course: "",
+                Courses: [],  
                 Level: "",
                 Semester: "",
                 Module: "",
@@ -296,24 +300,54 @@ const AdminPage = () => {
 
                 {/* Course + Level */}
                 <div className="flex flex-col md:flex-row md:space-x-4 mb-4">
-                    <div className="flex-1 mb-4 md:mb-0">
-                        <label className="block mb-1">Course *</label>
-                        <select
-                            name="course"
-                            value={formData.course}
-                            onChange={handleInputChange}
-                            className={`w-full p-2 border rounded ${validationErrors.course ? "border-red-500" : "border-gray-300"}`}
-                        >
-                            <option value="">Select Course</option>
-                            {courses.map(c => (
-                                <option key={c.id} value={c.name}>{c.name}</option>
-                            ))}
-                        </select>
+                    <div className="mb-4">
+                        <label className="block mb-1">Dept *</label>
+                        {(formData.Courses || []).map((course, index) => (
+                            <div key={index} className="flex space-x-2 mb-2">
+                                <select
+                                    value={course}
+                                    onChange={(e) => {
+                                        const newCourses = [...formData.Courses];
+                                        newCourses[index] = e.target.value;
+                                        setFormData({ ...formData, Courses: newCourses });
+                                    }}
+                                    className="flex-1 p-2 border rounded"
+                                >
+                                    <option value="">Select Dept</option>
+                                    {courses.map((c) => (
+                                        <option key={c.id} value={c.name}>
+                                            {c.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const newCourses = formData.Courses.filter((_, i) => i !== index);
+                                        setFormData({ ...formData, Courses: newCourses });
+                                    }}
+                                    className="px-3 py-1 bg-red-500 text-white rounded"
+                                >
+                                    Remove
+                                </button>
+                            </div>
+                        ))}
 
-                        {validationErrors.course && (
-                            <ErrorMessage message={validationErrors.course} />
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setFormData({ ...formData, Courses: [...formData.Courses, ""] })
+                            }
+                            className="mt-2 px-3 py-1 bg-green-600 text-white rounded"
+                        >
+                            + Add Dept
+                        </button>
+
+                        {validationErrors.Courses && (
+                            <ErrorMessage message={validationErrors.Courses} />
                         )}
                     </div>
+
                     {/* Level */}
                     <div className="flex-1">
                         <label className="block mb-1">Level *</label>
@@ -428,7 +462,7 @@ const AdminPage = () => {
                             <tr>
                                 <th className="px-4 py-2 border">Student ID</th>
                                 <th className="px-4 py-2 border">Name</th>
-                                <th className="px-4 py-2 border">Course</th>
+                                <th className="px-4 py-2 border">Dept</th>
                                 <th className="px-4 py-2 border">Level</th>
                                 <th className="px-4 py-2 border">Module</th>
                                 <th className="px-4 py-2 border">Year</th>
@@ -440,7 +474,10 @@ const AdminPage = () => {
                                 <tr key={record.id} className="text-center">
                                     <td className="px-4 py-2 border">{record.studentID}</td>
                                     <td className="px-4 py-2 border">{record.studentName}</td>
-                                    <td className="px-4 py-2 border">{record.course}</td>
+                                    <td className="px-4 py-2 border">
+                                        {Array.isArray(record.Courses) ? record.Courses.join(", ") : record.Courses}
+                                    </td>
+
                                     <td className="px-4 py-2 border">{record.Level}</td>
                                     <td className="px-4 py-2 border">{record.Module}</td>
                                     <td className="px-4 py-2 border">{record.academicYear}</td>

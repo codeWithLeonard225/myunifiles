@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useSwipeable } from "react-swipeable";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot,getDocs } from "firebase/firestore";
 import { db } from "../../../firebase"; // Ensure this path to your Firestore config is correct
+import { toast } from "react-toastify";
+
 
 export default function StudentPage() {
     const location = useLocation();
@@ -14,6 +16,90 @@ export default function StudentPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [modalData, setModalData] = useState(null);
+    const [modules, setModules] = useState([]);
+    const [levels, setLevels] = useState([]);
+    const [academicYears, setAcademicYears] = useState([]);
+
+    const [filters, setFilters] = useState({
+        Level: '',
+        Module: '',
+        Year: '',
+    });
+
+
+    useEffect(() => {
+        const fetchDropdowns = async () => {
+            try {
+                const modulesSnap = await getDocs(collection(db, "Modules"));
+                const levelsSnap = await getDocs(collection(db, "Levels"));
+                const yearsSnap = await getDocs(collection(db, "AcademicYears"));
+
+                setModules(modulesSnap.docs.map(doc => ({
+                    id: doc.id,
+                    name: doc.data().moduleName,
+                })));
+
+                setLevels(levelsSnap.docs.map(doc => ({
+                    id: doc.id,
+                    name: doc.data().levelName,
+                })));
+
+                setAcademicYears(yearsSnap.docs.map(doc => ({
+                    id: doc.id,
+                    name: doc.data().yearName,
+                })));
+            } catch (err) {
+                console.error(err);
+                toast.error("Failed to load dropdown data");
+            }
+        };
+
+        fetchDropdowns();
+    }, []);
+
+    const fetchFilteredQuestions = async () => {
+    if (!studentData.course) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+        let q = collection(db, "PastQuestions"); // Start with the collection
+
+        // Build filters dynamically
+        const conditions = [
+            filters.Level && where("Level", "==", filters.Level),
+            filters.Module && where("Module", "==", filters.Module),
+            filters.Year && where("academicYear", "==", filters.Year),
+            studentData.course && where("Courses", "array-contains", studentData.course)
+        ].filter(Boolean); // remove nulls
+
+        if (conditions.length > 0) {
+            q = query(collection(db, "PastQuestions"), ...conditions);
+        }
+
+        const snapshot = await getDocs(q);
+
+        const filteredQuestions = snapshot.docs.map((doc, index) => ({
+            id: doc.id || `missing-id-${index}`,
+            ...doc.data(),
+            fileUrl: doc.data().userPhotoUrl,
+            module: doc.data().Module || "N/A",
+            Level: doc.data().Level || "N/A",
+            semester: doc.data().Semester || "N/A",
+            year: doc.data().academicYear || "N/A",
+            type: doc.data().userPhotoUrl && doc.data().userPhotoUrl.toLowerCase().endsWith(".pdf") ? "pdf" : "image",
+        }));
+
+        setPastQuestions(filteredQuestions);
+        setLoading(false);
+    } catch (err) {
+        console.error(err);
+        setError("Failed to fetch filtered questions.");
+        setLoading(false);
+    }
+};
+
 
     // --- Firestore Fetch Logic ---
     useEffect(() => {
@@ -25,7 +111,7 @@ export default function StudentPage() {
             // Create a query filtered by the logged-in student's course
             const q = query(
                 collection(db, "PastQuestions"),
-                // where("course", "==", studentData.course)
+                where("Courses", "array-contains", studentData.course)
             );
 
             // Set up a real-time listener for the past questions
@@ -34,17 +120,18 @@ export default function StudentPage() {
                 const fetchedQuestions = snapshot.docs.map((doc, index) => ({
                     // Ensure 'id' is always unique
                     id: doc.id || `missing-id-${index}`,
-                    
+
                     ...doc.data(),
                     // Map your Firestore fields to component properties
-                    fileUrl: doc.data().userPhotoUrl, 
-                    module: doc.data().Module || 'N/A', 
+                    fileUrl: doc.data().userPhotoUrl,
+                    module: doc.data().Module || 'N/A',
+                    Level: doc.data().Level || 'N/A',
                     semester: doc.data().Semester || 'N/A',
                     year: doc.data().academicYear || 'N/A',
                     // Simple check to determine if it's an image or a PDF
-                    type: doc.data().userPhotoUrl && doc.data().userPhotoUrl.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image', 
+                    type: doc.data().userPhotoUrl && doc.data().userPhotoUrl.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image',
                 }));
-                
+
                 setPastQuestions(fetchedQuestions);
                 setLoading(false);
             }, (err) => {
@@ -58,7 +145,7 @@ export default function StudentPage() {
         } else if (!studentData.course) {
             setLoading(false);
         }
-    }, [studentData.course]); 
+    }, [studentData.course]);
     // ----------------------------
 
     // Determine the index of the currently open question for navigation
@@ -101,10 +188,53 @@ export default function StudentPage() {
                         </div>
                     </div>
                     <button className="bg-white text-indigo-600 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition">
-                        Logout
+                        Personal
                     </button>
                 </div>
             </header>
+            <div className="mb-6 flex flex-wrap gap-4">
+                <select
+                    className="border p-2 rounded"
+                    value={filters.Level}
+                    onChange={(e) => setFilters({ ...filters, Level: e.target.value })}
+                >
+                    <option value="">All Levels</option>
+                    {levels.map(lv => (
+                        <option key={lv.id} value={lv.name}>{lv.name}</option>
+                    ))}
+                </select>
+
+                <select
+                    className="border p-2 rounded"
+                    value={filters.Module}
+                    onChange={(e) => setFilters({ ...filters, Module: e.target.value })}
+                >
+                    <option value="">All Modules</option>
+                    {modules.map(mod => (
+                        <option key={mod.id} value={mod.name}>{mod.name}</option>
+                    ))}
+                </select>
+
+                <select
+                    className="border p-2 rounded"
+                    value={filters.Year}
+                    onChange={(e) => setFilters({ ...filters, Year: e.target.value })}
+                >
+                    <option value="">All Years</option>
+                    {academicYears.map(y => (
+                        <option key={y.id} value={y.name}>{y.name}</option>
+                    ))}
+                </select>
+
+                <button
+                    className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+                    onClick={() => fetchFilteredQuestions()}
+                >
+                    Search
+                </button>
+            </div>
+
+
 
             {/* Content */}
             <main className="max-w-6xl mx-auto px-6 py-8">
@@ -113,25 +243,28 @@ export default function StudentPage() {
                 {loading && (
                     <div className="text-center text-indigo-600 font-medium p-8">Loading questions...</div>
                 )}
-                
+
                 {error && (
                     <div className="text-center text-red-600 font-medium p-8 border border-red-300 bg-red-50 rounded">{error}</div>
                 )}
 
                 {!loading && !error && pastQuestions.length === 0 && (
-                     <div className="text-center text-gray-500 font-medium p-8 border border-gray-300 bg-white rounded">No past questions found for your course ({studentData.course}).</div>
+                    <div className="text-center text-gray-500 font-medium p-8 border border-gray-300 bg-white rounded">No past questions found for your course ({studentData.course}).</div>
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                   {pastQuestions.map((pq) => (
+                    {pastQuestions.map((pq) => (
                         <div
                             key={pq.id} // ✅ Uses the now-guaranteed unique ID
                             className="bg-white shadow-md rounded-xl p-5 flex flex-col justify-between hover:shadow-xl transition cursor-pointer"
                             onClick={() => setModalData(pq)}
                         >
-                            <div className="mb-4">
-                                <h3 className="text-lg font-semibold text-indigo-700">{pq.module}</h3>
-                                <p className="text-sm text-gray-600">{pq.semester} • {pq.year}</p>
+                            <div className="mb-4 flex justify-between">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-indigo-700">{pq.module}</h3>
+                                    <p className="text-sm text-gray-600">{pq.semester} • {pq.year}</p>
+                                </div>
+                                <p className="text-sm text-gray-600">{pq.Level}</p>
                             </div>
 
                             {/* Preview: Handle image vs. potential PDF/other files */}
@@ -176,14 +309,14 @@ export default function StudentPage() {
                         </button>
 
                         {/* Document Display: Portrait box enforced by h-[80vh] and max-w-lg */}
-                        <div 
+                        <div
                             className="w-full h-[80vh] max-w-lg lg:max-w-xl bg-white rounded-lg overflow-hidden shadow-2xl"
                         >
                             {modalData.type === 'image' ? (
                                 <img
                                     src={modalData.fileUrl}
                                     alt={modalData.module}
-                                    className="w-full h-full object-contain" 
+                                    className="w-full h-full object-contain"
                                 />
                             ) : (
                                 // For PDF documents, use an iframe to display them
@@ -197,7 +330,7 @@ export default function StudentPage() {
                                 </iframe>
                             )}
                         </div>
-                        
+
 
                         {/* Navigation below image */}
                         <div className="mt-4 flex items-center gap-4">

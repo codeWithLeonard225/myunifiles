@@ -50,12 +50,15 @@ const Login = ({ setUser }) => {
             return;
         }
 
+          // Convert name to lowercase and trim spaces
+    const sanitizedStudentName = studentName.toLowerCase().trim();
+
         try {
             // Check Registration collection (Student)
             const registrationQuery = query(
                 collection(db, "Registration"),
                 where("studentID", "==", studentID),
-                where("studentName", "==", studentName)
+                where("studentName", "==", sanitizedStudentName)
             );
             const registrationSnapshot = await getDocs(registrationQuery);
             if (!registrationSnapshot.empty) {
@@ -76,7 +79,7 @@ const Login = ({ setUser }) => {
             const adminQuery = query(
                 collection(db, "AdminUser"),
                 where("studentID", "==", studentID),
-                where("studentName", "==", studentName)
+                where("studentName", "==", sanitizedStudentName)
             );
             const adminSnapshot = await getDocs(adminQuery);
             if (!adminSnapshot.empty) {
@@ -97,7 +100,7 @@ const Login = ({ setUser }) => {
             const ceoQuery = query(
                 collection(db, "Ceo"),
                 where("studentID", "==", studentID),
-                where("studentName", "==", studentName)
+                where("studentName", "==", sanitizedStudentName)
             );
             const ceoSnapshot = await getDocs(ceoQuery);
             if (!ceoSnapshot.empty) {
