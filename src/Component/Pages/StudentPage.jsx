@@ -223,16 +223,17 @@ export default function StudentPage() {
                     ))}
                 </select>
 
-                <select
-                    className="border p-2 rounded"
-                    value={filters.Module}
-                    onChange={(e) => setFilters({ ...filters, Module: e.target.value })}
-                >
-                    <option value="">All Modules</option>
-                    {modules.map(mod => (
-                        <option key={mod.id} value={mod.name}>{mod.name}</option>
-                    ))}
-                </select>
+               <select
+  className="border p-2 rounded max-w-xs truncate"
+  value={filters.Module}
+  onChange={(e) => setFilters({ ...filters, Module: e.target.value })}
+>
+  <option value="">All Modules</option>
+  {modules.map(mod => (
+    <option key={mod.id} value={mod.name}>{mod.name}</option>
+  ))}
+</select>
+
 
                 <select
                     className="border p-2 rounded"
@@ -292,8 +293,13 @@ export default function StudentPage() {
                                     <img
                                         src={pq.pages[0].url} // Page 1 preview
                                         alt={`${pq.module} Page 1`}
-                                        className="h-full w-full object-cover"
+                                        className="h-full w-full object-cover select-none pointer-events-none"
+                                        draggable={false}
+                                        onContextMenu={(e) => e.preventDefault()} // disable right-click / long-press
+                                        onMouseDown={(e) => e.preventDefault()}   // prevent desktop press menu
+                                        onTouchStart={(e) => e.preventDefault()}  // prevent mobile long-press
                                     />
+
                                 ) : (
                                     <p className="text-gray-400">No pages uploaded</p>
                                 )}
