@@ -98,42 +98,52 @@ const AdminPage = () => {
 
 
     // 🔽 Fetch Levels & Academic Years dynamically
-    useEffect(() => {
-        const fetchDropdowns = async () => {
-            try {
-                const modulesSnap = await getDocs(collection(db, "Modules"));
-                const coursesSnap = await getDocs(collection(db, "Courses"));
-                const levelsSnap = await getDocs(collection(db, "Levels"));
-                const yearsSnap = await getDocs(collection(db, "AcademicYears"));
+   useEffect(() => {
+  // Modules
+  const unsubscribeModules = onSnapshot(collection(db, "Modules"), (snapshot) => {
+    const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().moduleName }));
+    setModules(data);
+  }, (err) => {
+    console.error(err);
+    toast.error("Failed to fetch Modules");
+  });
 
-                setModules(modulesSnap.docs.map(doc => ({
-                    id: doc.id,
-                    name: doc.data().moduleName,
-                })));
+  // Courses
+  const unsubscribeCourses = onSnapshot(collection(db, "Courses"), (snapshot) => {
+    const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().courseName }));
+    setCourses(data);
+  }, (err) => {
+    console.error(err);
+    toast.error("Failed to fetch Courses");
+  });
 
-                setCourses(coursesSnap.docs.map(doc => ({
-                    id: doc.id,
-                    name: doc.data().courseName,
-                })));
+  // Levels
+  const unsubscribeLevels = onSnapshot(collection(db, "Levels"), (snapshot) => {
+    const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().levelName }));
+    setLevels(data);
+  }, (err) => {
+    console.error(err);
+    toast.error("Failed to fetch Levels");
+  });
 
-                setLevels(levelsSnap.docs.map(doc => ({
-                    id: doc.id,
-                    name: doc.data().levelName,
-                })));
+  // Academic Years
+  const unsubscribeAcademicYears = onSnapshot(collection(db, "AcademicYears"), (snapshot) => {
+    const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().yearName }));
+    setAcademicYears(data);
+  }, (err) => {
+    console.error(err);
+    toast.error("Failed to fetch Academic Years");
+  });
 
-                setAcademicYears(yearsSnap.docs.map(doc => ({
-                    id: doc.id,
-                    name: doc.data().yearName,
-                })));
+  // Cleanup subscriptions on unmount
+  return () => {
+    unsubscribeModules();
+    unsubscribeCourses();
+    unsubscribeLevels();
+    unsubscribeAcademicYears();
+  };
+}, []);
 
-            } catch (err) {
-                console.error(err);
-                toast.error("Failed to load dropdown data");
-            }
-        };
-
-        fetchDropdowns();
-    }, []);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;

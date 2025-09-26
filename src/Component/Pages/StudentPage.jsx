@@ -46,35 +46,49 @@ export default function StudentPage() {
     });
 
 
-    useEffect(() => {
-        const fetchDropdowns = async () => {
-            try {
-                const modulesSnap = await getDocs(collection(db, "Modules"));
-                const levelsSnap = await getDocs(collection(db, "Levels"));
-                const yearsSnap = await getDocs(collection(db, "AcademicYears"));
+  useEffect(() => {
+    // Set up real-time listeners for all dropdowns
+    const modulesRef = collection(db, "Modules");
+    const levelsRef = collection(db, "Levels");
+    const yearsRef = collection(db, "AcademicYears");
 
-                setModules(modulesSnap.docs.map(doc => ({
-                    id: doc.id,
-                    name: doc.data().moduleName,
-                })));
+    const unsubscribeModules = onSnapshot(modulesRef, (snapshot) => {
+        setModules(snapshot.docs.map(doc => ({
+            id: doc.id,
+            name: doc.data().moduleName,
+        })));
+    }, (err) => {
+        console.error("Failed to load modules:", err);
+        toast.error("Failed to load modules");
+    });
 
-                setLevels(levelsSnap.docs.map(doc => ({
-                    id: doc.id,
-                    name: doc.data().levelName,
-                })));
+    const unsubscribeLevels = onSnapshot(levelsRef, (snapshot) => {
+        setLevels(snapshot.docs.map(doc => ({
+            id: doc.id,
+            name: doc.data().levelName,
+        })));
+    }, (err) => {
+        console.error("Failed to load levels:", err);
+        toast.error("Failed to load levels");
+    });
 
-                setAcademicYears(yearsSnap.docs.map(doc => ({
-                    id: doc.id,
-                    name: doc.data().yearName,
-                })));
-            } catch (err) {
-                console.error(err);
-                toast.error("Failed to load dropdown data");
-            }
-        };
+    const unsubscribeYears = onSnapshot(yearsRef, (snapshot) => {
+        setAcademicYears(snapshot.docs.map(doc => ({
+            id: doc.id,
+            name: doc.data().yearName,
+        })));
+    }, (err) => {
+        console.error("Failed to load academic years:", err);
+        toast.error("Failed to load academic years");
+    });
 
-        fetchDropdowns();
-    }, []);
+    // Cleanup listeners on unmount
+    return () => {
+        unsubscribeModules();
+        unsubscribeLevels();
+        unsubscribeYears();
+    };
+}, []);
 
     const fetchFilteredQuestions = async () => {
         if (!studentData.course) return;
@@ -223,16 +237,16 @@ export default function StudentPage() {
                     ))}
                 </select>
 
-               <select
-  className="border p-2 rounded max-w-xs truncate"
-  value={filters.Module}
-  onChange={(e) => setFilters({ ...filters, Module: e.target.value })}
->
-  <option value="">All Modules</option>
-  {modules.map(mod => (
-    <option key={mod.id} value={mod.name}>{mod.name}</option>
-  ))}
-</select>
+                <select
+                    className="border p-2 rounded max-w-xs truncate"
+                    value={filters.Module}
+                    onChange={(e) => setFilters({ ...filters, Module: e.target.value })}
+                >
+                    <option value="">All Modules</option>
+                    {modules.map(mod => (
+                        <option key={mod.id} value={mod.name}>{mod.name}</option>
+                    ))}
+                </select>
 
 
                 <select

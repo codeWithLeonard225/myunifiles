@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../../../firebase";
-import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore";
 import { toast } from "react-toastify";
 
 const DataFormsPage = () => {
@@ -30,24 +30,43 @@ const DataFormsPage = () => {
   const [editingLevel, setEditingLevel] = useState(null);
 
   // --- Fetch Data ---
-  useEffect(() => {
-    fetchAll("Modules", setModules);
-    fetchAll("Courses", setCourses);
-    fetchAll("Institutions", setInstitutions);
-    fetchAll("AcademicYears", setAcademicYears);
-    fetchAll("Levels", setLevels);
-  }, []);
+useEffect(() => {
+  const unsubModules = fetchAll("Modules", setModules);
+  const unsubCourses = fetchAll("Courses", setCourses);
+  const unsubInstitutions = fetchAll("Institutions", setInstitutions);
+  const unsubAcademicYears = fetchAll("AcademicYears", setAcademicYears);
+  const unsubLevels = fetchAll("Levels", setLevels);
 
-  const fetchAll = async (collectionName, setState) => {
-    try {
-      const snapshot = await getDocs(collection(db, collectionName));
+  // Cleanup on unmount
+  return () => {
+    unsubModules();
+    unsubCourses();
+    unsubInstitutions();
+    unsubAcademicYears();
+    unsubLevels();
+  };
+}, []);
+
+
+  const fetchAll = (collectionName, setState) => {
+  const colRef = collection(db, collectionName);
+
+  // Subscribe to real-time updates
+  const unsubscribe = onSnapshot(
+    colRef,
+    (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setState(data);
-    } catch (err) {
+    },
+    (err) => {
       console.error(err);
       toast.error(`Failed to fetch ${collectionName}`);
     }
-  };
+  );
+
+  return unsubscribe; // optional if you want to unsubscribe later
+};
+
 
   // --- Handlers ---
   const handleSubmit = async (data, setData, collectionName, editing, setEditing) => {
@@ -68,12 +87,12 @@ const DataFormsPage = () => {
         collectionName === "Modules"
           ? setModules
           : collectionName === "Courses"
-          ? setCourses
-          : collectionName === "Institutions"
-          ? setInstitutions
-          : collectionName === "AcademicYears"
-          ? setAcademicYears
-          : setLevels
+            ? setCourses
+            : collectionName === "Institutions"
+              ? setInstitutions
+              : collectionName === "AcademicYears"
+                ? setAcademicYears
+                : setLevels
       );
     } catch (err) {
       console.error(err);
@@ -114,7 +133,7 @@ const DataFormsPage = () => {
   return (
     <div className="min-h-screen p-6 bg-gray-100">
       <h1 className="text-3xl font-bold text-center mb-6">Add Data Forms</h1>
-      <div className="grid md:grid-cols-4 gap-6">
+      <div className="grid md:grid-cols-2 gap-6">
 
         {/* Institution Form */}
         <div className="bg-white p-6 rounded shadow-md flex flex-col">
@@ -132,26 +151,29 @@ const DataFormsPage = () => {
           >
             {editingInstitution ? "Update Institution" : "Add Institution"}
           </button>
-
-          <table className="mt-4 w-full text-left border">
-            <thead>
-              <tr>
-                <th className="border p-2">Institution Name</th>
-                <th className="border p-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {institutions.map(i => (
-                <tr key={i.id}>
-                  <td className="border p-2">{i.institutionName}</td>
-                  <td className="border p-2 space-x-2">
-                    <button onClick={() => handleEdit(i, "institution")} className="bg-yellow-500 px-2 py-1 rounded">Edit</button>
-                    <button onClick={() => handleDelete(i.id, "Institutions", setInstitutions)} className="bg-red-500 px-2 py-1 rounded">Delete</button>
-                  </td>
+          <div className="mt-4 w-full overflow-x-auto">
+            <table className="mt-4 w-full text-left border">
+              <thead>
+                <tr>
+                  <th className="border p-2">Institution Name</th>
+                  <th className="border p-2">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {institutions.map(i => (
+                  <tr key={i.id}>
+                    <td className="border p-2">{i.institutionName}</td>
+                    <td className="border p-2 space-x-2">
+                      <button onClick={() => handleEdit(i, "institution")} className="bg-yellow-500 px-2 py-1 rounded">Edit</button>
+                      <button onClick={() => handleDelete(i.id, "Institutions", setInstitutions)} className="bg-red-500 px-2 py-1 rounded">Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+          </div>
+
         </div>
 
         {/* Level Form */}
@@ -246,26 +268,38 @@ const DataFormsPage = () => {
           >
             {editingModule ? "Update Module" : "Add Module"}
           </button>
-
-          <table className="mt-4 w-full text-left border">
-            <thead>
-              <tr>
-                <th className="border p-2">Module Name</th>
-                <th className="border p-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {modules.map(m => (
-                <tr key={m.id}>
-                  <td className="border p-2">{m.moduleName}</td>
-                  <td className="border p-2 space-x-2">
-                    <button onClick={() => handleEdit(m, "module")} className="bg-yellow-500 px-2 py-1 rounded">Edit</button>
-                    <button onClick={() => handleDelete(m.id, "Modules", setModules)} className="bg-red-500 px-2 py-1 rounded">Delete</button>
-                  </td>
+          <div className="mt-4 w-full overflow-y-auto max-h-64 border">
+            <table className="w-full text-left border">
+              <thead className="sticky top-0 bg-gray-100">
+                <tr>
+                  <th className="border p-2">Module Name</th>
+                  <th className="border p-2">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {modules.map((m) => (
+                  <tr key={m.id}>
+                    <td className="border p-2">{m.moduleName}</td>
+                    <td className="border p-2 space-x-2 flex flex-wrap">
+                      <button
+                        onClick={() => handleEdit(m, "module")}
+                        className="bg-yellow-500 px-2 py-1 rounded text-xs sm:text-sm"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(m.id, "Modules", setModules)}
+                        className="bg-red-500 px-2 py-1 rounded text-xs sm:text-sm"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
         </div>
 
         {/* Academic Year Form */}
