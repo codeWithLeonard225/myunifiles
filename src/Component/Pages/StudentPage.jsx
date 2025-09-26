@@ -323,8 +323,13 @@ export default function StudentPage() {
                                 <img
                                     src={modalData.pages[modalPageIndex].url}
                                     alt={`${modalData.module} Page ${modalPageIndex + 1}`}
-                                    className="w-full h-full object-contain "
+                                    className="w-full h-full object-contain select-none pointer-events-none"
+                                    draggable={false}
+                                    onContextMenu={(e) => e.preventDefault()} // disable right-click
+                                    onMouseDown={(e) => e.preventDefault()}   // prevent long-press menu on some devices
+                                    onTouchStart={(e) => e.preventDefault()}  // stop mobile long-press menu
                                 />
+
                             ) : (
                                 <p className="text-center text-gray-500 p-4">No pages available</p>
                             )}
