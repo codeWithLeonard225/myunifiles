@@ -61,7 +61,6 @@ const AdminPage = () => {
     const adminUser = location.state?.user || {};
 
     const [formData, setFormData] = useState({
-        // 🔑 MODIFIED: Initialize with logged-in admin user data
         studentID: adminUser.studentID || "",
         studentName: adminUser.studentName || "",
         Courses: [],
@@ -70,10 +69,10 @@ const AdminPage = () => {
         Module: "",
         academicYear: "",
         registrationDate: new Date().toISOString().slice(0, 10),
-        registeredBy: adminUser.studentName || "Admin", // 🔑 MODIFIED: Use admin's name
-        userPhoto: null,
-        userPublicId: null,
+        registeredBy: adminUser.studentName || "Admin",
+        pages: [], // 🔑 store multiple page images
     });
+
 
     const [records, setRecords] = useState([]);
     const [validationErrors, setValidationErrors] = useState({});
@@ -147,10 +146,14 @@ const AdminPage = () => {
     };
 
     const handleUploadSuccess = (url, publicId) => {
-        setFormData({ ...formData, userPhoto: url, userPublicId: publicId });
+        setFormData((prev) => ({
+            ...prev,
+            pages: [...(prev.pages || []), { url, publicId }],
+        }));
         setIsUploading(false);
-        toast.success("Image uploaded successfully!");
+        toast.success("Page uploaded successfully!");
     };
+
 
     const handleCameraCapture = (url) => {
         setFormData({ ...formData, userPhoto: url });
@@ -182,10 +185,7 @@ const AdminPage = () => {
             errors.academicYear = "Academic Year selection is required.";
             valid = false;
         }
-        if (!formData.userPhoto) {
-            toast.error("Photo is required!");
-            valid = false;
-        }
+
 
         setValidationErrors(errors);
         return valid;
@@ -198,7 +198,7 @@ const AdminPage = () => {
         try {
             const dataToSave = {
                 ...formData,
-                userPhotoUrl: formData.userPhoto,
+                pages: formData.pages || [], // 🔑 store all pages
             };
 
             delete dataToSave.userPhoto;
@@ -222,7 +222,7 @@ const AdminPage = () => {
                 // 🔑 MODIFIED: Preserve admin's ID and Name after submission
                 studentID: adminUser.studentID || "",
                 studentName: adminUser.studentName || "",
-                Courses: [],  
+                Courses: [],
                 Level: "",
                 Semester: "",
                 Module: "",
@@ -418,22 +418,70 @@ const AdminPage = () => {
                     {validationErrors.academicYear && <ErrorMessage message={validationErrors.academicYear} />}
                 </div>
 
-                {/* Photo Upload */}
+
+                {/* Pages Upload */}
                 <div className="mb-6 border-t pt-4">
-                    <label className="block mb-1 font-semibold">Upload Past Question Paper *</label>
+                    <label className="block mb-1 font-semibold">Upload Past Question Paper Pages *</label>
                     <div className="flex flex-col items-center w-full">
+
+                        {/* Large Preview */}
                         <div className="w-full max-w-2xl aspect-[2/3] border-4 border-dashed flex items-center justify-center mb-2 overflow-hidden">
-                            {formData.userPhoto ? (
+                            {formData.pages && formData.pages.length > 0 ? (
                                 <img
-                                    src={formData.userPhoto}
-                                    alt="Past Question Paper"
+                                    src={formData.pages[0].url} // default to first page
+                                    alt="Preview"
                                     className="w-full h-full object-contain"
                                 />
                             ) : (
-                                "Upload PDF/Image"
+                                <p className="text-gray-400">No page selected</p>
                             )}
                         </div>
+
+                        {/* Thumbnails (clickable to change preview) */}
+                        {formData.pages && formData.pages.length > 0 && (
+                            <div className="mt-4 grid grid-cols-3 gap-2">
+                                {formData.pages.map((page, index) => (
+                                    <div
+                                        key={index}
+                                        className="border rounded p-2 text-center relative cursor-pointer"
+                                        onClick={() => {
+                                            // move clicked page to first position (for preview)
+                                            setFormData((prev) => {
+                                                const pages = [...prev.pages];
+                                                const [clicked] = pages.splice(index, 1);
+                                                return { ...prev, pages: [clicked, ...pages] };
+                                            });
+                                        }}
+                                    >
+                                        <img
+                                            src={page.url}
+                                            alt={`Page ${index + 1}`}
+                                            className="h-32 w-full object-contain mb-2"
+                                        />
+                                        <p className="text-sm font-medium">Page {index + 1}</p>
+
+                                        {/* Delete */}
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setFormData((prev) => ({
+                                                    ...prev,
+                                                    pages: prev.pages.filter((_, i) => i !== index),
+                                                }));
+                                                toast.info(`Page ${index + 1} removed`);
+                                            }}
+                                            className="absolute top-1 right-1 bg-red-500 text-white text-xs px-2 py-1 rounded hover:bg-red-600"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         <CloudinaryImageUploader onUploadSuccess={handleUploadSuccess} />
+
                         <button
                             onClick={() => setShowCamera(true)}
                             className="mt-2 px-4 py-2 bg-green-600 text-white rounded font-semibold transition hover:bg-green-700"

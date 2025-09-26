@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useSwipeable } from "react-swipeable";
-import { collection, query, where, onSnapshot,getDocs } from "firebase/firestore";
+import { collection, query, where, onSnapshot, getDocs } from "firebase/firestore";
 import { db } from "../../../firebase"; // Ensure this path to your Firestore config is correct
 import { toast } from "react-toastify";
 
@@ -19,6 +19,25 @@ export default function StudentPage() {
     const [modules, setModules] = useState([]);
     const [levels, setLevels] = useState([]);
     const [academicYears, setAcademicYears] = useState([]);
+
+    const [modalPageIndex, setModalPageIndex] = useState(0); // Track current page within modal
+
+    // Update modal opening function
+    const openModal = (pq) => {
+        setModalData(pq);
+        setModalPageIndex(0); // default to first page
+    };
+
+    // Navigation functions
+    const handleNextPage = () => {
+        if (!modalData?.pages?.length) return;
+        setModalPageIndex((prev) => (prev + 1) % modalData.pages.length);
+    };
+
+    const handlePrevPage = () => {
+        if (!modalData?.pages?.length) return;
+        setModalPageIndex((prev) => (prev - 1 + modalData.pages.length) % modalData.pages.length);
+    };
 
     const [filters, setFilters] = useState({
         Level: '',
@@ -58,47 +77,47 @@ export default function StudentPage() {
     }, []);
 
     const fetchFilteredQuestions = async () => {
-    if (!studentData.course) return;
+        if (!studentData.course) return;
 
-    setLoading(true);
-    setError(null);
+        setLoading(true);
+        setError(null);
 
-    try {
-        let q = collection(db, "PastQuestions"); // Start with the collection
+        try {
+            let q = collection(db, "PastQuestions"); // Start with the collection
 
-        // Build filters dynamically
-        const conditions = [
-            filters.Level && where("Level", "==", filters.Level),
-            filters.Module && where("Module", "==", filters.Module),
-            filters.Year && where("academicYear", "==", filters.Year),
-            studentData.course && where("Courses", "array-contains", studentData.course)
-        ].filter(Boolean); // remove nulls
+            // Build filters dynamically
+            const conditions = [
+                filters.Level && where("Level", "==", filters.Level),
+                filters.Module && where("Module", "==", filters.Module),
+                filters.Year && where("academicYear", "==", filters.Year),
+                studentData.course && where("Courses", "array-contains", studentData.course)
+            ].filter(Boolean); // remove nulls
 
-        if (conditions.length > 0) {
-            q = query(collection(db, "PastQuestions"), ...conditions);
+            if (conditions.length > 0) {
+                q = query(collection(db, "PastQuestions"), ...conditions);
+            }
+
+            const snapshot = await getDocs(q);
+
+            const filteredQuestions = snapshot.docs.map((doc, index) => ({
+                id: doc.id || `missing-id-${index}`,
+                ...doc.data(),
+                fileUrl: doc.data().userPhotoUrl,
+                module: doc.data().Module || "N/A",
+                Level: doc.data().Level || "N/A",
+                semester: doc.data().Semester || "N/A",
+                year: doc.data().academicYear || "N/A",
+                type: doc.data().userPhotoUrl && doc.data().userPhotoUrl.toLowerCase().endsWith(".pdf") ? "pdf" : "image",
+            }));
+
+            setPastQuestions(filteredQuestions);
+            setLoading(false);
+        } catch (err) {
+            console.error(err);
+            setError("Failed to fetch filtered questions.");
+            setLoading(false);
         }
-
-        const snapshot = await getDocs(q);
-
-        const filteredQuestions = snapshot.docs.map((doc, index) => ({
-            id: doc.id || `missing-id-${index}`,
-            ...doc.data(),
-            fileUrl: doc.data().userPhotoUrl,
-            module: doc.data().Module || "N/A",
-            Level: doc.data().Level || "N/A",
-            semester: doc.data().Semester || "N/A",
-            year: doc.data().academicYear || "N/A",
-            type: doc.data().userPhotoUrl && doc.data().userPhotoUrl.toLowerCase().endsWith(".pdf") ? "pdf" : "image",
-        }));
-
-        setPastQuestions(filteredQuestions);
-        setLoading(false);
-    } catch (err) {
-        console.error(err);
-        setError("Failed to fetch filtered questions.");
-        setLoading(false);
-    }
-};
+    };
 
 
     // --- Firestore Fetch Logic ---
@@ -255,9 +274,9 @@ export default function StudentPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {pastQuestions.map((pq) => (
                         <div
-                            key={pq.id} // ✅ Uses the now-guaranteed unique ID
+                            key={pq.id}
                             className="bg-white shadow-md rounded-xl p-5 flex flex-col justify-between hover:shadow-xl transition cursor-pointer"
-                            onClick={() => setModalData(pq)}
+                            onClick={() => openModal(pq)}
                         >
                             <div className="mb-4 flex justify-between">
                                 <div>
@@ -267,24 +286,20 @@ export default function StudentPage() {
                                 <p className="text-sm text-gray-600">{pq.Level}</p>
                             </div>
 
-                            {/* Preview: Handle image vs. potential PDF/other files */}
-                            <div
-                                className="mb-4 h-64 border rounded overflow-hidden flex items-center justify-center bg-gray-100"
-                            >
-                                {pq.type === 'image' ? (
+                            {/* Preview Page 1 */}
+                            <div className="mb-4 h-64 border rounded overflow-hidden flex items-center justify-center bg-gray-100">
+                                {pq.pages && pq.pages.length > 0 ? (
                                     <img
-                                        src={pq.fileUrl}
-                                        alt={pq.module}
+                                        src={pq.pages[0].url} // Page 1 preview
+                                        alt={`${pq.module} Page 1`}
                                         className="h-full w-full object-cover"
                                     />
                                 ) : (
-                                    <div className="text-center text-indigo-500 p-4">
-                                        <svg className="w-10 h-10 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20"><path d="M5 2a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V4a2 2 0 00-2-2H5zm7 10H8v1h4v-1zm0-3H8v1h4V9zm0-3H8v1h4V6z"></path></svg>
-                                        <p className="text-xs font-semibold">Click to View PDF</p>
-                                    </div>
+                                    <p className="text-gray-400">No pages uploaded</p>
                                 )}
                             </div>
                         </div>
+
                     ))}
                 </div>
             </main>
@@ -295,12 +310,7 @@ export default function StudentPage() {
                     className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4"
                     onClick={() => setModalData(null)}
                 >
-                    <div
-                        {...handlers} // attach swipe handlers here
-                        className="relative max-w-5xl w-full flex flex-col items-center"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {/* Close Button */}
+                    <div {...handlers} className="relative max-w-5xl w-full flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
                         <button
                             className="absolute top-2 right-2 md:-right-8 bg-white text-black w-8 h-8 rounded-full shadow-lg flex items-center justify-center text-xl font-bold z-10"
                             onClick={() => setModalData(null)}
@@ -308,53 +318,42 @@ export default function StudentPage() {
                             &times;
                         </button>
 
-                        {/* Document Display: Portrait box enforced by h-[80vh] and max-w-lg */}
-                        <div
-                            className="w-full h-[80vh] max-w-lg lg:max-w-xl bg-white rounded-lg overflow-hidden shadow-2xl"
-                        >
-                            {modalData.type === 'image' ? (
+                        <div className="w-full h-full  max-w-lg lg:max-w-xl bg-white rounded-lg overflow-hidden shadow-2xl flex items-center justify-center">
+                            {modalData.pages && modalData.pages.length > 0 ? (
                                 <img
-                                    src={modalData.fileUrl}
-                                    alt={modalData.module}
-                                    className="w-full h-full object-contain"
+                                    src={modalData.pages[modalPageIndex].url}
+                                    alt={`${modalData.module} Page ${modalPageIndex + 1}`}
+                                    className="w-full h-full object-contain "
                                 />
                             ) : (
-                                // For PDF documents, use an iframe to display them
-                                <iframe
-                                    src={modalData.fileUrl}
-                                    title={modalData.module}
-                                    className="w-full h-full border-none"
-                                    frameBorder="0"
-                                >
-                                    This browser does not support PDFs. Please download the PDF to view it.
-                                </iframe>
+                                <p className="text-center text-gray-500 p-4">No pages available</p>
                             )}
                         </div>
 
-
-                        {/* Navigation below image */}
-                        <div className="mt-4 flex items-center gap-4">
-                            <button
-                                className="bg-white text-indigo-700 px-4 py-2 rounded font-bold hover:bg-gray-200 transition disabled:opacity-50"
-                                onClick={handlePrev}
-                                disabled={pastQuestions.length <= 1}
-                            >
-                                &#8592; Previous
-                            </button>
-                            <div className="text-white font-medium text-sm">
-                                {currentIndex + 1} of {pastQuestions.length}
+                        {/* Navigation */}
+                        {modalData.pages && modalData.pages.length > 1 && (
+                            <div className="mt-4 flex items-center gap-4">
+                                <button
+                                    className="bg-white text-indigo-700 px-4 py-2 rounded font-bold hover:bg-gray-200"
+                                    onClick={handlePrevPage}
+                                >
+                                    &#8592; Previous
+                                </button>
+                                <div className="text-white font-medium text-sm">
+                                    Page {modalPageIndex + 1} of {modalData.pages.length}
+                                </div>
+                                <button
+                                    className="bg-white text-indigo-700 px-4 py-2 rounded font-bold hover:bg-gray-200"
+                                    onClick={handleNextPage}
+                                >
+                                    Next &#8594;
+                                </button>
                             </div>
-                            <button
-                                className="bg-white text-indigo-700 px-4 py-2 rounded font-bold hover:bg-gray-200 transition disabled:opacity-50"
-                                onClick={handleNext}
-                                disabled={pastQuestions.length <= 1}
-                            >
-                                Next &#8594;
-                            </button>
-                        </div>
+                        )}
                     </div>
                 </div>
             )}
+
         </div>
     );
 }
