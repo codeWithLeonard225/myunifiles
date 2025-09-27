@@ -55,6 +55,41 @@ const ErrorMessage = ({ message }) => (
     <p className="text-red-500 text-xs mt-1 font-medium">{message}</p>
 );
 
+const CLOUD_NAME = "dxcrlpike";  // 🔑 your Cloudinary cloud name
+const UPLOAD_PRESET = "LeoTechSl Projects"; // 🔑 your unsigned preset
+
+// Helper: convert base64 → File
+const base64ToFile = (base64String, filename) => {
+    const arr = base64String.split(",");
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) u8arr[n] = bstr.charCodeAt(n);
+    return new File([u8arr], filename, { type: mime });
+};
+
+// Upload to Cloudinary
+const uploadToCloudinary = async (base64Image) => {
+    const file = base64ToFile(base64Image, "page.jpg");
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", UPLOAD_PRESET);
+    formData.append("folder", "MyUniFiles/PastQuestions");
+
+    const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+        { method: "POST", body: formData }
+    );
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || "Upload failed");
+
+    return { url: data.secure_url, publicId: data.public_id };
+};
+
+
 const AdminPage = () => {
     // 🔑 NEW: Get location state which contains the logged-in admin user data
     const location = useLocation();
@@ -98,51 +133,51 @@ const AdminPage = () => {
 
 
     // 🔽 Fetch Levels & Academic Years dynamically
-   useEffect(() => {
-  // Modules
-  const unsubscribeModules = onSnapshot(collection(db, "Modules"), (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().moduleName }));
-    setModules(data);
-  }, (err) => {
-    console.error(err);
-    toast.error("Failed to fetch Modules");
-  });
+    useEffect(() => {
+        // Modules
+        const unsubscribeModules = onSnapshot(collection(db, "Modules"), (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().moduleName }));
+            setModules(data);
+        }, (err) => {
+            console.error(err);
+            toast.error("Failed to fetch Modules");
+        });
 
-  // Courses
-  const unsubscribeCourses = onSnapshot(collection(db, "Courses"), (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().courseName }));
-    setCourses(data);
-  }, (err) => {
-    console.error(err);
-    toast.error("Failed to fetch Courses");
-  });
+        // Courses
+        const unsubscribeCourses = onSnapshot(collection(db, "Courses"), (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().courseName }));
+            setCourses(data);
+        }, (err) => {
+            console.error(err);
+            toast.error("Failed to fetch Courses");
+        });
 
-  // Levels
-  const unsubscribeLevels = onSnapshot(collection(db, "Levels"), (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().levelName }));
-    setLevels(data);
-  }, (err) => {
-    console.error(err);
-    toast.error("Failed to fetch Levels");
-  });
+        // Levels
+        const unsubscribeLevels = onSnapshot(collection(db, "Levels"), (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().levelName }));
+            setLevels(data);
+        }, (err) => {
+            console.error(err);
+            toast.error("Failed to fetch Levels");
+        });
 
-  // Academic Years
-  const unsubscribeAcademicYears = onSnapshot(collection(db, "AcademicYears"), (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().yearName }));
-    setAcademicYears(data);
-  }, (err) => {
-    console.error(err);
-    toast.error("Failed to fetch Academic Years");
-  });
+        // Academic Years
+        const unsubscribeAcademicYears = onSnapshot(collection(db, "AcademicYears"), (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().yearName }));
+            setAcademicYears(data);
+        }, (err) => {
+            console.error(err);
+            toast.error("Failed to fetch Academic Years");
+        });
 
-  // Cleanup subscriptions on unmount
-  return () => {
-    unsubscribeModules();
-    unsubscribeCourses();
-    unsubscribeLevels();
-    unsubscribeAcademicYears();
-  };
-}, []);
+        // Cleanup subscriptions on unmount
+        return () => {
+            unsubscribeModules();
+            unsubscribeCourses();
+            unsubscribeLevels();
+            unsubscribeAcademicYears();
+        };
+    }, []);
 
 
     const handleInputChange = (e) => {
@@ -165,11 +200,26 @@ const AdminPage = () => {
     };
 
 
-    const handleCameraCapture = (url) => {
-        setFormData({ ...formData, userPhoto: url });
-        setShowCamera(false);
-        toast.success("Photo captured successfully!");
+    const handleCameraCapture = async (base64Image) => {
+        try {
+            setIsUploading(true);
+            const { url, publicId } = await uploadToCloudinary(base64Image);
+
+            setFormData((prev) => ({
+                ...prev,
+                pages: [...(prev.pages || []), { url, publicId }],
+            }));
+
+            toast.success("Page uploaded successfully!");
+        } catch (err) {
+            console.error(err);
+            toast.error("Upload failed. Try again.");
+        } finally {
+            setIsUploading(false);
+            setShowCamera(false);
+        }
     };
+
 
     const validateForm = () => {
         const errors = {};

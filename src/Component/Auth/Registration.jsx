@@ -155,10 +155,53 @@ const Registration = () => {
     const [institutions, setInstitutions] = useState([]);
     const [courses, setCourses] = useState([]);
 
-
     // Preview state
     const [showPreview, setShowPreview] = useState(false);
     const [submittedData, setSubmittedData] = useState(null);
+
+    const CLOUD_NAME = "dxcrlpike"; // Cloudinary Cloud Name
+    const UPLOAD_PRESET = "LeoTechSl Projects"; // Cloudinary Upload Preset
+    const MAX_FILE_SIZE_MB = 5;
+    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif"];
+
+    const base64ToFile = (base64, filename) => {
+        const arr = base64.split(",");
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new File([u8arr], filename, { type: mime });
+    };
+
+
+    const uploadToCloudinary = async (base64Image) => {
+    const file = base64ToFile(base64Image, "student-photo.jpg");
+
+    const formData = new FormData(); // <-- New FormData instance
+    formData.append("file", file);
+    formData.append("upload_preset", UPLOAD_PRESET);
+    formData.append("folder", "MyUniFiles/Registerer");
+
+    const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+        { method: "POST", body: formData }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.error?.message || "Upload failed");
+    }
+
+    return { url: data.secure_url, publicId: data.public_id };
+};
+
+
+
+
 
     useEffect(() => {
         const fetchData = async () => {
@@ -195,11 +238,19 @@ const Registration = () => {
     };
 
     // Handle Camera capture
-    const handleCameraCapture = (url) => {
-        setFormData({ ...formData, userPhoto: url });
-        setShowCamera(false);
-        toast.success("Photo captured successfully!");
+    const handleCameraCapture = async (base64Image) => {
+        try {
+            const { url, publicId } = await uploadToCloudinary(base64Image);
+            setFormData({ ...formData, userPhoto: url, userPublicId: publicId });
+            setShowCamera(false);
+            toast.success("Photo uploaded successfully!");
+        } catch (error) {
+            console.error(error);
+            toast.error("Upload failed. Try again.");
+        }
     };
+
+
 
     // Step validation
     const validateStep = (step) => {
