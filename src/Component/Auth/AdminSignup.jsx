@@ -1,7 +1,7 @@
 // src/pages/AdminSignup.jsx
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { db } from "../../../firebase"; 
+import { db } from "../../../firebase";
 import {
   collection,
   addDoc,
@@ -11,13 +11,14 @@ import {
   query,
   deleteDoc,
   doc,
+  updateDoc,
 } from "firebase/firestore";
 import { v4 as uuidv4 } from "uuid";
 import CameraCapture from "../CaptureCamera/CameraCapture";
 import CloudinaryImageUploader from "../CaptureCamera/CloudinaryImageUploader";
 
 // --- Constants ---
-const COLLECTION_NAME = "AdminUser"; 
+const COLLECTION_NAME = "AdminUser";
 const generateUniqueId = () => uuidv4().slice(0, 8);
 
 const LEVELS = ["Certificate", "Diploma", "Degree", "Postgraduate Diploma", "Masters"];
@@ -68,43 +69,45 @@ const AdminSignup = () => {
   const [showCamera, setShowCamera] = useState(false);
   const [courses, setCourses] = useState([]);
   const [records, setRecords] = useState([]); // store fetched records
-    const [levels, setLevels] = useState([]);
-      const [academicYears, setAcademicYears] = useState([]);
+  const [levels, setLevels] = useState([]);
+  const [academicYears, setAcademicYears] = useState([]);
+  const [editId, setEditId] = useState(null);
+
 
   // 🔽 Fetch Levels & Academic Years dynamically
-     useEffect(() => {
-         const fetchDropdowns = async () => {
-             try {
-              
-                 const coursesSnap = await getDocs(collection(db, "Courses"));
-                 const levelsSnap = await getDocs(collection(db, "Levels"));
-                 const yearsSnap = await getDocs(collection(db, "AcademicYears"));
- 
-               
- 
-                 setCourses(coursesSnap.docs.map(doc => ({
-                     id: doc.id,
-                     name: doc.data().courseName,
-                 })));
- 
-                 setLevels(levelsSnap.docs.map(doc => ({
-                     id: doc.id,
-                     name: doc.data().levelName,
-                 })));
- 
-                 setAcademicYears(yearsSnap.docs.map(doc => ({
-                     id: doc.id,
-                     name: doc.data().yearName,
-                 })));
- 
-             } catch (err) {
-                 console.error(err);
-                 toast.error("Failed to load dropdown data");
-             }
-         };
- 
-         fetchDropdowns();
-     }, []);
+  useEffect(() => {
+    const fetchDropdowns = async () => {
+      try {
+
+        const coursesSnap = await getDocs(collection(db, "Courses"));
+        const levelsSnap = await getDocs(collection(db, "Levels"));
+        const yearsSnap = await getDocs(collection(db, "AcademicYears"));
+
+
+
+        setCourses(coursesSnap.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().courseName,
+        })));
+
+        setLevels(levelsSnap.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().levelName,
+        })));
+
+        setAcademicYears(yearsSnap.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().yearName,
+        })));
+
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to load dropdown data");
+      }
+    };
+
+    fetchDropdowns();
+  }, []);
 
   // Realtime fetch for AdminUser records
   useEffect(() => {
@@ -176,6 +179,7 @@ const AdminSignup = () => {
       userPublicId: null,
     });
     setValidationErrors({});
+     setEditId(null); // <-- reset edit mode
   };
 
   const handleSubmit = async () => {
@@ -185,18 +189,27 @@ const AdminSignup = () => {
     try {
       const dataToSave = {
         ...formData,
-          studentName: formData.studentName.toLowerCase(), // <-- lowercase here
+        studentName: formData.studentName.toLowerCase(),
         userPhotoUrl: formData.userPhoto,
       };
       delete dataToSave.userPhoto;
 
-      await addDoc(collection(db, COLLECTION_NAME), {
-        ...dataToSave,
-        timestamp: new Date(),
-      });
+      if (editId) {
+        // 🔹 Update existing record
+        const ref = doc(db, COLLECTION_NAME, editId);
+        await updateDoc(ref, dataToSave);
+        toast.success("Record updated successfully!");
+      } else {
+        // 🔹 Add new record
+        await addDoc(collection(db, COLLECTION_NAME), {
+          ...dataToSave,
+          timestamp: new Date(),
+        });
+        toast.success("Basic Signup Data Saved! 🎉");
+      }
 
-      toast.success("Basic Signup Data Saved! 🎉");
       resetForm();
+      setEditId(null);
     } catch (err) {
       console.error(err);
       toast.error("Failed to submit form. Try again.");
@@ -204,6 +217,23 @@ const AdminSignup = () => {
       setIsSubmitting(false);
     }
   };
+
+  const handleEdit = (record) => {
+    setFormData({
+      studentID: record.studentID || generateUniqueId(),
+      studentName: record.studentName || "",
+      course: record.course || "",
+      Level: record.Level || "",
+      academicYear: record.academicYear || "",
+      registrationDate: record.registrationDate || new Date().toISOString().slice(0, 10),
+      registeredBy: record.registeredBy || "Admin",
+      userPhoto: record.userPhotoUrl || null,
+      userPublicId: record.userPublicId || null,
+    });
+    setEditId(record.id);
+    toast.info("Editing record...");
+  };
+
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this record?")) return;
@@ -256,54 +286,54 @@ const AdminSignup = () => {
         <div className="flex flex-col md:flex-row md:space-x-4 mb-4">
           <div className="flex-1 mb-4 md:mb-0">
             <label className="block mb-1 font-medium text-gray-700">Course *</label>
-              <select
-                            name="course"
-                            value={formData.course}
-                            onChange={handleInputChange}
-                            className={`w-full p-2 border rounded ${validationErrors.course ? "border-red-500" : "border-gray-300"}`}
-                        >
-                            <option value="">Select Course</option>
-                            {courses.map(c => (
-                                <option key={c.id} value={c.name}>{c.name}</option>
-                            ))}
-                        </select>
+            <select
+              name="course"
+              value={formData.course}
+              onChange={handleInputChange}
+              className={`w-full p-2 border rounded ${validationErrors.course ? "border-red-500" : "border-gray-300"}`}
+            >
+              <option value="">Select Course</option>
+              {courses.map(c => (
+                <option key={c.id} value={c.name}>{c.name}</option>
+              ))}
+            </select>
             {validationErrors.course && (
               <ErrorMessage message={validationErrors.course} />
             )}
           </div>
-            <div className="flex-1">
-                        <label className="block mb-1">Level *</label>
-                        <select
-                            name="Level"
-                            value={formData.Level}
-                            onChange={handleInputChange}
-                            className={`w-full p-2 border rounded ${validationErrors.Level ? "border-red-500" : "border-gray-300"}`}
-                        >
-                            <option value="">Select Level</option>
-                            {levels.map(l => (
-                                <option key={l.id} value={l.name}>{l.name}</option>
-                            ))}
-                        </select>
-                        {validationErrors.Level && <ErrorMessage message={validationErrors.Level} />}
-                    </div>
+          <div className="flex-1">
+            <label className="block mb-1">Level *</label>
+            <select
+              name="Level"
+              value={formData.Level}
+              onChange={handleInputChange}
+              className={`w-full p-2 border rounded ${validationErrors.Level ? "border-red-500" : "border-gray-300"}`}
+            >
+              <option value="">Select Level</option>
+              {levels.map(l => (
+                <option key={l.id} value={l.name}>{l.name}</option>
+              ))}
+            </select>
+            {validationErrors.Level && <ErrorMessage message={validationErrors.Level} />}
+          </div>
         </div>
 
-         {/* Academic Year */}
-                <div className="mb-4">
-                    <label className="block mb-1">Academic Year *</label>
-                    <select
-                        name="academicYear"
-                        value={formData.academicYear}
-                        onChange={handleInputChange}
-                        className={`w-full p-2 border rounded ${validationErrors.academicYear ? "border-red-500" : "border-gray-300"}`}
-                    >
-                        <option value="">Select Year</option>
-                        {academicYears.map(y => (
-                            <option key={y.id} value={y.name}>{y.name}</option>
-                        ))}
-                    </select>
-                    {validationErrors.academicYear && <ErrorMessage message={validationErrors.academicYear} />}
-                </div>
+        {/* Academic Year */}
+        <div className="mb-4">
+          <label className="block mb-1">Academic Year *</label>
+          <select
+            name="academicYear"
+            value={formData.academicYear}
+            onChange={handleInputChange}
+            className={`w-full p-2 border rounded ${validationErrors.academicYear ? "border-red-500" : "border-gray-300"}`}
+          >
+            <option value="">Select Year</option>
+            {academicYears.map(y => (
+              <option key={y.id} value={y.name}>{y.name}</option>
+            ))}
+          </select>
+          {validationErrors.academicYear && <ErrorMessage message={validationErrors.academicYear} />}
+        </div>
 
         {/* Photo Upload */}
         <div className="mb-6 border-t pt-4">
@@ -332,13 +362,31 @@ const AdminSignup = () => {
         </div>
 
         {/* Submit */}
-        <button
-          onClick={handleSubmit}
-          disabled={isSubmitting || isUploading}
-          className="w-full bg-green-600 text-white py-2 rounded font-semibold hover:bg-green-700 disabled:bg-gray-400 transition"
-        >
-          {isSubmitting ? "Saving Data..." : "Submit Basic Signup Data"}
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting || isUploading}
+            className="flex-1 bg-green-600 text-white py-2 rounded font-semibold hover:bg-green-700 disabled:bg-gray-400 transition"
+          >
+            {isSubmitting ? "Saving Data..." : editId ? "Update Record" : "Submit Basic Signup Data"}
+          </button>
+
+          {editId && (
+            <button
+              type="button"
+              onClick={() => {
+                resetForm();
+                setEditId(null);
+                toast.info("Edit cancelled");
+              }}
+              className="flex-1 bg-gray-500 text-white py-2 rounded font-semibold hover:bg-gray-600 transition"
+            >
+              Cancel Edit
+            </button>
+          )}
+        </div>
+
+
       </div>
 
       {/* Records Table */}
@@ -377,12 +425,22 @@ const AdminSignup = () => {
                     )}
                   </td>
                   <td className="px-3 py-2 border space-x-2">
-                    <button
-                      onClick={() => handleDelete(record.id)}
-                      className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                    >
-                      Delete
-                    </button>
+
+                    <td className="px-3 py-2 border space-x-2">
+                      <button
+                        onClick={() => handleEdit(record)}
+                        className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(record.id)}
+                        className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                      >
+                        Delete
+                      </button>
+                    </td>
+
                   </td>
                 </tr>
               ))}
