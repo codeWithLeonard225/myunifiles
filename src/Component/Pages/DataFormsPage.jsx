@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../../../firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot,orderBy,query  } from "firebase/firestore";
 import { toast } from "react-toastify";
 
 const DataFormsPage = () => {
@@ -31,13 +31,12 @@ const DataFormsPage = () => {
 
   // --- Fetch Data ---
 useEffect(() => {
-  const unsubModules = fetchAll("Modules", setModules);
-  const unsubCourses = fetchAll("Courses", setCourses);
-  const unsubInstitutions = fetchAll("Institutions", setInstitutions);
-  const unsubAcademicYears = fetchAll("AcademicYears", setAcademicYears);
-  const unsubLevels = fetchAll("Levels", setLevels);
+  const unsubModules = fetchAll("Modules", setModules, "moduleName");
+  const unsubCourses = fetchAll("Courses", setCourses, "courseName");
+  const unsubInstitutions = fetchAll("Institutions", setInstitutions, "institutionName");
+  const unsubAcademicYears = fetchAll("AcademicYears", setAcademicYears, "yearName");
+  const unsubLevels = fetchAll("Levels", setLevels, "levelName");
 
-  // Cleanup on unmount
   return () => {
     unsubModules();
     unsubCourses();
@@ -48,12 +47,13 @@ useEffect(() => {
 }, []);
 
 
-  const fetchAll = (collectionName, setState) => {
-  const colRef = collection(db, collectionName);
 
-  // Subscribe to real-time updates
+const fetchAll = (collectionName, setState, fieldName) => {
+  const colRef = collection(db, collectionName);
+  const q = query(colRef, orderBy(fieldName, "asc")); // ✅ alphabetic order
+
   const unsubscribe = onSnapshot(
-    colRef,
+    q,
     (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setState(data);
@@ -64,7 +64,7 @@ useEffect(() => {
     }
   );
 
-  return unsubscribe; // optional if you want to unsubscribe later
+  return unsubscribe;
 };
 
 

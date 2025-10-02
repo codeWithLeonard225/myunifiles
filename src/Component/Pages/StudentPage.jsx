@@ -286,7 +286,7 @@ export default function StudentPage() {
                     <div className="text-center text-gray-500 font-medium p-8 border border-gray-300 bg-white rounded">No past questions found for your course ({studentData.course}).</div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 ">
                     {pastQuestions.map((pq) => (
                         <div
                             key={pq.id}
@@ -307,7 +307,7 @@ export default function StudentPage() {
                                     <img
                                         src={pq.pages[0].url} // Page 1 preview
                                         alt={`${pq.module} Page 1`}
-                                        className="h-full w-full object-cover select-none pointer-events-none"
+                                        className="h-full  w-full object-cover select-none pointer-events-none"
                                         draggable={false}
                                         onContextMenu={(e) => e.preventDefault()} // disable right-click / long-press
                                         onMouseDown={(e) => e.preventDefault()}   // prevent desktop press menu
@@ -324,60 +324,91 @@ export default function StudentPage() {
                 </div>
             </main>
 
-            {/* Modal - Portrait Display Enforced */}
-            {modalData && (
-                <div
-                    className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4"
-                    onClick={() => setModalData(null)}
-                >
-                    <div {...handlers} className="relative max-w-5xl w-full flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
-                        <button
-                            className="absolute top-2 right-2 md:-right-8 bg-white text-black w-8 h-8 rounded-full shadow-lg flex items-center justify-center text-xl font-bold z-10"
-                            onClick={() => setModalData(null)}
-                        >
-                            &times;
-                        </button>
+           {/* Modal - Portrait Display Enforced */}
+{modalData && (
+  <div
+    className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4"
+    onClick={() => setModalData(null)}
+  >
+    <div
+      {...handlers}
+      className="relative max-w-5xl w-full flex flex-col items-center"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Close Button */}
+      <button
+        className="absolute top-2 right-2 md:-right-8 bg-white text-black w-8 h-8 rounded-full shadow-lg flex items-center justify-center text-xl font-bold z-10"
+        onClick={() => setModalData(null)}
+      >
+        &times;
+      </button>
 
-                        <div className="w-full h-full  max-w-lg lg:max-w-xl bg-white rounded-lg overflow-hidden shadow-2xl flex items-center justify-center">
-                            {modalData.pages && modalData.pages.length > 0 ? (
-                                <img
-                                    src={modalData.pages[modalPageIndex].url}
-                                    alt={`${modalData.module} Page ${modalPageIndex + 1}`}
-                                    className="w-full h-full object-contain select-none pointer-events-none"
-                                    draggable={false}
-                                    onContextMenu={(e) => e.preventDefault()} // disable right-click
-                                    onMouseDown={(e) => e.preventDefault()}   // prevent long-press menu on some devices
-                                    onTouchStart={(e) => e.preventDefault()}  // stop mobile long-press menu
-                                />
+      {/* Image Box */}
+      <div className="relative w-full h-full max-w-lg lg:max-w-xl bg-white rounded-lg overflow-hidden shadow-2xl flex items-center justify-center">
+        {modalData.pages && modalData.pages.length > 0 ? (
+          <img
+            src={modalData.pages[modalPageIndex].url}
+            alt={`${modalData.module} Page ${modalPageIndex + 1}`}
+            className="w-full h-full object-contain select-none pointer-events-none"
+            draggable={false}
+            onContextMenu={(e) => e.preventDefault()}
+            onMouseDown={(e) => e.preventDefault()}
+            onTouchStart={(e) => e.preventDefault()}
+          />
+        ) : (
+          <p className="text-center text-gray-500 p-4">No pages available</p>
+        )}
 
-                            ) : (
-                                <p className="text-center text-gray-500 p-4">No pages available</p>
-                            )}
-                        </div>
+        {/* Desktop Arrows - overlay on sides */}
+        {modalData.pages && modalData.pages.length > 1 && (
+          <>
+            <button
+              className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 bg-white text-indigo-700 p-3 rounded-full shadow-lg hover:bg-gray-200"
+              onClick={handlePrevPage}
+            >
+              &#8592;
+            </button>
+            <button
+              className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 bg-white text-indigo-700 p-3 rounded-full shadow-lg hover:bg-gray-200"
+              onClick={handleNextPage}
+            >
+              &#8594;
+            </button>
+          </>
+        )}
+      </div>
 
-                        {/* Navigation */}
-                        {modalData.pages && modalData.pages.length > 1 && (
-                            <div className="mt-4 flex items-center gap-4">
-                                <button
-                                    className="bg-white text-indigo-700 px-4 py-2 rounded font-bold hover:bg-gray-200"
-                                    onClick={handlePrevPage}
-                                >
-                                    &#8592; Previous
-                                </button>
-                                <div className="text-white font-medium text-sm">
-                                    Page {modalPageIndex + 1} of {modalData.pages.length}
-                                </div>
-                                <button
-                                    className="bg-white text-indigo-700 px-4 py-2 rounded font-bold hover:bg-gray-200"
-                                    onClick={handleNextPage}
-                                >
-                                    Next &#8594;
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+      {/* Mobile navigation buttons BELOW image */}
+      {modalData.pages && modalData.pages.length > 1 && (
+        <div className="mt-4 flex md:hidden items-center gap-4">
+          <button
+            className="bg-white text-indigo-700 px-4 py-2 rounded font-bold hover:bg-gray-200"
+            onClick={handlePrevPage}
+          >
+            &#8592; Previous
+          </button>
+          <div className="text-white font-medium text-sm">
+            Page {modalPageIndex + 1} of {modalData.pages.length}
+          </div>
+          <button
+            className="bg-white text-indigo-700 px-4 py-2 rounded font-bold hover:bg-gray-200"
+            onClick={handleNextPage}
+          >
+            Next &#8594;
+          </button>
+        </div>
+      )}
+
+      {/* Page Indicator on Desktop */}
+      {modalData.pages && modalData.pages.length > 1 && (
+        <div className="hidden md:block mt-3 text-white font-medium text-sm">
+          Page {modalPageIndex + 1} of {modalData.pages.length}
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
 
         </div>
     );
